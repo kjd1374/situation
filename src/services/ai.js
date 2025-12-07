@@ -65,14 +65,24 @@ export const generateContent = async (situation, apiKey = null) => {
         });
 
         if (!response.ok) {
-            // If server fails (e.g. 404 on local dev, or 500 if key missing), fall back to Mock
-            throw new Error('Server endpoint unavailable');
+            // Try to read the error message from the server
+            const errorText = await response.text();
+            let errorMessage = `Server Error ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.error) errorMessage = errorJson.error;
+            } catch (e) {
+                errorMessage = errorText;
+            }
+            throw new Error(errorMessage);
         }
 
         return await response.json();
 
     } catch (serverError) {
-        console.warn("Server generation failed (likely local dev or no env var), returning MOCK data.", serverError);
+        console.warn("Server generation failed", serverError);
+        // Alert the user to the specific error for debugging
+        alert(`[시스템 오류] 서버 연결 실패\n내용: ${serverError.message}\n\n(임시로 데모 데이터를 보여줍니다)`);
         return MOCK_DATA;
     }
 };
