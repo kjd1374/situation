@@ -39,7 +39,7 @@ export default async function handler(req, res) {
                         text: `You are a Vietnamese language tutor for a Korean speaker, specializing in the Southern dialect (Ho Chi Minh City style). 
             The user is in this situation: "${situation}". 
             
-            Generate 5 useful vocabulary words and 4 useful sentences for this situation.
+            Generate 8 useful vocabulary words and 10 useful sentences for this situation.
             
             IMPORTANT: Use Southern Vietnamese vocabulary and grammar (e.g., use 'muỗng' instead of 'thìa', 'chén' instead of 'bát', 'bông' instead of 'hoa', 'nè/hông' particles).
             
