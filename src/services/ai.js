@@ -19,49 +19,16 @@ export const generateContent = async (situation, apiKey = null) => {
     // Simulate network delay for effect
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // 1. If user provided a personal key, use it directly (Client-side)
-    if (apiKey) {
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `You are a Vietnamese language tutor for a Korean speaker, specializing in the Southern dialect (Ho Chi Minh City style). 
-            The user is in this situation: "${situation}". 
-            
-            Generate 5 useful vocabulary words and 4 useful sentences for this situation.
-            
-            IMPORTANT: Use Southern Vietnamese vocabulary and grammar (e.g., use 'muỗng' instead of 'thìa', 'chén' instead of 'bát', 'bông' instead of 'hoa', 'nè/hông' particles).
-            
-            Return ONLY raw JSON in this format (no markdown backticks):
-            {
-              "words": [{"vi": "...", "en": "..."}], (Note: put Korean translation in the 'en' field)
-              "sentences": [{"vi": "...", "en": "..."}] (Note: put Korean translation in the 'en' field)
-            }`
-                        }]
-                    }]
-                })
-            });
-
-            const data = await response.json();
-            const text = data.candidates[0].content.parts[0].text;
-            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(jsonStr);
-
-        } catch (error) {
-            console.error("Client API Error", error);
-            throw new Error("개인 API 키 확인이 필요합니다.");
-        }
-    }
-
-    // 2. No personal key coming from settings? Try the Serverless Endpoint (Vercel)
+    // Unified Architecture: Always use the Serverless Endpoint to avoid CORS issues
+    // We pass the user's apiKey if they have one. The server will decide which key to use.
     try {
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ situation })
+            body: JSON.stringify({
+                situation,
+                userApiKey: apiKey // Send this if it exists
+            })
         });
 
         if (!response.ok) {
@@ -72,7 +39,12 @@ export const generateContent = async (situation, apiKey = null) => {
                 const errorJson = JSON.parse(errorText);
                 if (errorJson.error) errorMessage = errorJson.error;
             } catch (e) {
-                errorMessage = errorText;
+                errorMessage = errorText; // Use raw text if JSON parse fails (e.g. HTML 404)
+
+                // Detailed check for the "Rewrite to HTML" issue
+                if (errorMessage.trim().startsWith("<!doctype html") || errorMessage.trim().startsWith("<html")) {
+                    errorMessage = "API 경로 설정 오류 (vercel.json)";
+                }
             }
             throw new Error(errorMessage);
         }
@@ -80,9 +52,9 @@ export const generateContent = async (situation, apiKey = null) => {
         return await response.json();
 
     } catch (serverError) {
-        console.warn("Server generation failed", serverError);
+        console.warn("Generation failed", serverError);
         // Alert the user to the specific error for debugging
-        alert(`[시스템 오류] 서버 연결 실패\n내용: ${serverError.message}\n\n(임시로 데모 데이터를 보여줍니다)`);
+        alert(`[오류 발생]\n내용: ${serverError.message}\n\n(참고: 배포 직후라면 1-2분 뒤에 다시 시도해보세요)`);
         return MOCK_DATA;
     }
 };
